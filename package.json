@@ -6,7 +6,7 @@
   "scripts": {
     "start": "cd src && node index.js",
     "test": "jest",
-    "lint": "esling ."
+    "lint": "eslint ."
   },
   "license": "MIT",
   "dependencies": {
