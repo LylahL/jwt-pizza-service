@@ -49,4 +49,5 @@ app.use((err, req, res, next) => {
   next();
 });
 
+app.use(metrics.requestTracker);
 module.exports = app;
