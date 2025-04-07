@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config.js');
 const { asyncHandler } = require('../endpointHelper.js');
 const { DB, Role } = require('../database/database.js');
+const {simulateAuthentication} = require('../metrics.js');
 
 const authRouter = express.Router();
 
@@ -82,9 +83,17 @@ authRouter.put(
   '/',
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const user = await DB.getUser(email, password);
-    const auth = await setAuth(user);
-    res.json({ user: user, token: auth });
+
+    try {
+      const user = await DB.getUser(email, password);
+      const auth = await setAuth(user);
+
+      simulateAuthentication(true);
+      res.json({ user: user, token: auth });
+    } catch (err) {
+      simulateAuthentication(false);
+      res.status(401).json({ error: 'Authentication failed' });
+    }
   })
 );
 

@@ -3,7 +3,19 @@ const config = require('./config');
 const express = require('express');
 
 let requests = 0;
+let putRequests = 0;
+let postRequests = 0;
+let deleteRequests = 0;
+let getRequests = 0;
 let latency = 0;
+let activeUsers = 0; 
+
+let authSuccess = 0;
+let authFailure = 0; 
+
+let pizzasSold = 0; 
+let pizzaFailures = 0;
+let revenue = 0;
 let purchaseMetrics = {
   count: 0,
   totalCost: 0,
@@ -13,16 +25,26 @@ let purchaseMetrics = {
 
 function requestTracker(req, res, next) {
   const startTime = Date.now();
-  
+  const method = req.method;
+  activeUsers++;
   res.on('finish', () => {
     const duration = Date.now() - startTime;
     requests++;
-    latency += duration;
-    sendMetricToGrafana('requests', requests, 'sum', '1');
-    sendMetricToGrafana('latency', latency, 'sum', 'ms');
+    if (method === 'PUT') putRequests++;
+    else if (method === 'POST') postRequests++;
+    else if (method === 'DELETE') deleteRequests++;
+    else if (method === 'GET') getRequests++;
+    latency = duration;
+
+    activeUsers--;
   });
 
   next();
+}
+
+function simulateAuthentication(success = true) {
+  if (success) authSuccess++;  
+  else authFailure++;
 }
 
 function getCpuUsagePercentage() {
@@ -36,36 +58,51 @@ function getMemoryUsagePercentage() {
   const usedMemory = totalMemory - freeMemory;
   return ((usedMemory / totalMemory) * 100).toFixed(2);
 }
+function trackPizzaCreationFailure() {
+  pizzaFailures++;
+}
 
 function trackPurchase(order) {
+  console.log('Tracking purchase:', order);
+
   const startTime = Date.now();
   const pizzaCount = order.pizzas;
   const cost = order.totalCost;
-  const isSuccess = pizzaCount <= 20;
 
-  setTimeout(() => {
-    const responseTime = Date.now() - startTime;
+  // Simulate latency measurement — still keep timing realistic
+  const responseTime = Date.now() - startTime;
 
-    purchaseMetrics.count++;
-    purchaseMetrics.totalCost += cost;
-    purchaseMetrics.responseTimes.push(responseTime);
-    
-    if (!isSuccess) {
-      purchaseMetrics.failures++;
-    }
-
-    sendMetricToGrafana('purchase_count', purchaseMetrics.count, 'sum', '1');
-    sendMetricToGrafana('total_cost', purchaseMetrics.totalCost, 'sum', 'USD');
-    sendMetricToGrafana('purchase_failures', purchaseMetrics.failures, 'sum', '1');
-    sendMetricToGrafana('purchase_response_time', responseTime, 'gauge', 'ms');
-  }, Math.random() * 2000);
+  // Update internal metrics
+  purchaseMetrics.count++;
+  purchaseMetrics.totalCost += cost;
+  purchaseMetrics.responseTimes.push(responseTime);
+  pizzasSold += pizzaCount;
+  revenue += cost; 
 }
+
 
 function sendMetricsPeriodically(period) {
   setInterval(() => {
     try {
       sendMetricToGrafana('cpu_usage', getCpuUsagePercentage(), 'gauge', '%');
       sendMetricToGrafana('memory_usage', getMemoryUsagePercentage(), 'gauge', '%');
+
+      sendMetricToGrafana('requests_total', requests, 'sum', '1');
+      sendMetricToGrafana('get_requests_total', getRequests, 'sum', '1');
+      sendMetricToGrafana('post_requests_total', postRequests, 'sum', '1');
+      sendMetricToGrafana('put_requests_total', putRequests, 'sum', '1');
+      sendMetricToGrafana('delete_requests_total', deleteRequests, 'sum', '1');
+
+      // sendMetricToGrafana('latency', latency, 'gauge', 'ms');
+      // sendMetricToGrafana('active_users', activeUsers, 'sum', '1');
+
+      // sendMetricToGrafana('auth_success', authSuccess, 'sum', '1');
+      // sendMetricToGrafana('auth_failed', authFailure, 'sum', '1');
+
+      // sendMetricToGrafana('pizza_creation_latency', responseTime, 'gauge', 'ms');
+      // sendMetricToGrafana('pizzas_sold', pizzasSold, 'sum', '1');
+      sendMetricToGrafana('pizza_creation_failures', pizzaFailures, 'sum', '1');
+      // sendMetricToGrafana('revenue', revenue, 'sum', 'USD');
 
       if (purchaseMetrics.responseTimes.length > 0) {
         const avgResponseTime = purchaseMetrics.responseTimes.reduce((a, b) => a + b, 0) / purchaseMetrics.responseTimes.length;
@@ -79,6 +116,7 @@ function sendMetricsPeriodically(period) {
 }
 
 function sendMetricToGrafana(metricName, metricValue, type, unit) {
+  const metricValueAsInt = Math.floor(metricValue);
   const metric = {
     resourceMetrics: [
       {
@@ -91,7 +129,7 @@ function sendMetricToGrafana(metricName, metricValue, type, unit) {
                 [type]: {
                   dataPoints: [
                     {
-                      asInt: metricValue,
+                      asInt: metricValueAsInt,
                       timeUnixNano: Date.now() * 1000000,
                     },
                   ],
@@ -110,10 +148,10 @@ function sendMetricToGrafana(metricName, metricValue, type, unit) {
   }
 
   const body = JSON.stringify(metric);
-  fetch(`${config.url}`, {
+  fetch(`${config.metrics.url}`, {
     method: 'POST',
     body: body,
-    headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${config.metrics.apiKey}`, 'Content-Type': 'application/json' },
   })
     .then((response) => {
       if (!response.ok) {
@@ -121,7 +159,7 @@ function sendMetricToGrafana(metricName, metricValue, type, unit) {
           console.error(`Failed to push metrics data to Grafana: ${text}\n${body}`);
         });
       } else {
-        console.log(`Pushed ${metricName}`);
+        console.log(`Pushed ${metricName} ${metricValueAsInt} to Grafana`);
       }
     })
     .catch((error) => {
@@ -132,6 +170,8 @@ function sendMetricToGrafana(metricName, metricValue, type, unit) {
 sendMetricsPeriodically(5000);
 
 module.exports = {
-  requestTracker,
+  requestTracker, 
   trackPurchase,
+  simulateAuthentication,
+  trackPizzaCreationFailure
 };

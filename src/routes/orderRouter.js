@@ -3,6 +3,8 @@ const config = require('../config.js');
 const { Role, DB } = require('../database/database.js');
 const { authRouter } = require('./authRouter.js');
 const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
+const { trackPurchase } = require('../metrics.js');
+const { trackPizzaCreationFailure } = require('../metrics.js');
 
 const orderRouter = express.Router();
 
@@ -86,8 +88,13 @@ orderRouter.post(
     });
     const j = await r.json();
     if (r.ok) {
+      const pizzas = order.items.length;
+      const totalCost = order.items.reduce((sum, item) => sum + item.price, 0);
+      trackPurchase({ pizzas, totalCost });
+
       res.send({ order, reportSlowPizzaToFactoryUrl: j.reportUrl, jwt: j.jwt });
     } else {
+      trackPizzaCreationFailure();
       res.status(500).send({ message: 'Failed to fulfill order at factory', reportPizzaCreationErrorToPizzaFactoryUrl: j.reportUrl });
     }
   })
