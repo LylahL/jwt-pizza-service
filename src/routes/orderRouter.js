@@ -5,7 +5,7 @@ const { authRouter } = require('./authRouter.js');
 const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
 const { trackPurchase } = require('../metrics.js');
 const { trackPizzaCreationFailure } = require('../metrics.js');
-
+const logger = require('../logger.js');
 const orderRouter = express.Router();
 
 orderRouter.endpoints = [
@@ -88,6 +88,15 @@ orderRouter.post(
     });
     const j = await r.json();
     if (r.ok) {
+      logger.log('info', 'factory-order', {
+        message: 'order created at factory',
+        diner: {
+          id: req.user.id,
+          name: req.user.name,
+          email: req.user.email
+        },
+        order
+      });
       const pizzas = order.items.length;
       const totalCost = order.items.reduce((sum, item) => sum + item.price, 0);
       trackPurchase({ pizzas, totalCost });

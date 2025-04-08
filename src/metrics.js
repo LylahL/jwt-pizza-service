@@ -84,14 +84,14 @@ function trackPurchase(order) {
 function sendMetricsPeriodically(period) {
   setInterval(() => {
     try {
-      sendMetricToGrafana('cpu_usage', getCpuUsagePercentage(), 'gauge', '%');
-      sendMetricToGrafana('memory_usage', getMemoryUsagePercentage(), 'gauge', '%');
+      // sendMetricToGrafana('cpu_usage', getCpuUsagePercentage(), 'gauge', '%');
+      // sendMetricToGrafana('memory_usage', getMemoryUsagePercentage(), 'gauge', '%');
 
-      sendMetricToGrafana('requests_total', requests, 'sum', '1');
-      sendMetricToGrafana('get_requests_total', getRequests, 'sum', '1');
-      sendMetricToGrafana('post_requests_total', postRequests, 'sum', '1');
-      sendMetricToGrafana('put_requests_total', putRequests, 'sum', '1');
-      sendMetricToGrafana('delete_requests_total', deleteRequests, 'sum', '1');
+      // sendMetricToGrafana('requests_total', requests, 'sum', '1');
+      // sendMetricToGrafana('get_requests_total', getRequests, 'sum', '1');
+      // sendMetricToGrafana('post_requests_total', postRequests, 'sum', '1');
+      // sendMetricToGrafana('put_requests_total', putRequests, 'sum', '1');
+      // sendMetricToGrafana('delete_requests_total', deleteRequests, 'sum', '1');
 
       // sendMetricToGrafana('latency', latency, 'gauge', 'ms');
       // sendMetricToGrafana('active_users', activeUsers, 'sum', '1');
@@ -101,7 +101,7 @@ function sendMetricsPeriodically(period) {
 
       // sendMetricToGrafana('pizza_creation_latency', responseTime, 'gauge', 'ms');
       // sendMetricToGrafana('pizzas_sold', pizzasSold, 'sum', '1');
-      sendMetricToGrafana('pizza_creation_failures', pizzaFailures, 'sum', '1');
+      // sendMetricToGrafana('pizza_creation_failures', pizzaFailures, 'sum', '1');
       // sendMetricToGrafana('revenue', revenue, 'sum', 'USD');
 
       if (purchaseMetrics.responseTimes.length > 0) {

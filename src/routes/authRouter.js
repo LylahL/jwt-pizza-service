@@ -4,7 +4,7 @@ const config = require('../config.js');
 const { asyncHandler } = require('../endpointHelper.js');
 const { DB, Role } = require('../database/database.js');
 const {simulateAuthentication} = require('../metrics.js');
-
+const logger = require('../logger.js');
 const authRouter = express.Router();
 
 authRouter.endpoints = [
@@ -51,6 +51,9 @@ async function setAuthUser(req, res, next) {
       }
     } catch {
       req.user = null;
+      logger.log('error', 'unhandled-error', {
+        message: 'Error in setAuthUser'
+      });      
     }
   }
   next();
